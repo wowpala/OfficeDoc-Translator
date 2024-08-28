@@ -12,4 +12,4 @@ https://siliconflow.cn/zh-cn/pricing
 ```shell
 pip install openai
 pip install python-pptx
-```# PPT-Translator
+```
