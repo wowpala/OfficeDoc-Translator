@@ -25,7 +25,7 @@ def translate_text(text, target_language="zh-CN"):
         return text
     try:
         response = client.chat.completions.create(
-            model="Qwen/Qwen2-7B-Instruct",
+            model="Qwen/Qwen2.5-7B-Instruct",
             #            model='THUDM/glm-4-9b-chat',
             messages=[
                 {
