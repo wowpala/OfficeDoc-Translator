@@ -12,8 +12,16 @@ api_key = os.environ.get("siliconflow_API_KEY")
 if not api_key:
     api_key = "sk-xxxxxx"
 
-pptx_path = "1.pptx"
-output_path = "1-CN.pptx"
+# 查找当前目录下的第一个 .pptx 文件作为输入文件
+pptx_files = [f for f in os.listdir(".") if f.endswith(".pptx")]
+if not pptx_files:
+    raise FileNotFoundError("No .pptx files found in the current directory.")
+input_file = pptx_files[0]
+
+# 生成输出文件名
+output_file = os.path.splitext(input_file)[0] + "-cn" + os.path.splitext(input_file)[1]
+
+# 默认字体
 font_modified = "Microsoft YaHei Light"
 
 # 初始化OpenAI客户端
@@ -131,8 +139,8 @@ def translate_slide_master(slide_master, target_language):
             translate_shape(shape, target_language)
 
 
-def translate_pptx(pptx_path, target_language="zh-CN", output_path="translated.pptx"):
-    prs = Presentation(pptx_path)
+def translate_pptx(input_file, target_language="zh-CN", output_file="translated.pptx"):
+    prs = Presentation(input_file)
 
     # Translate slide masters
     #    for slide_master in prs.slide_masters:
@@ -169,9 +177,9 @@ def translate_pptx(pptx_path, target_language="zh-CN", output_path="translated.p
             prs.core_properties.subject, target_language
         )
 
-    prs.save(output_path)
-    print(f"Translated PPT saved to {output_path}")
+    prs.save(output_file)
+    print(f"Translated PPT saved to {output_file}")
 
 
 # 执行翻译
-translate_pptx(pptx_path=pptx_path, target_language="zh-CN", output_path=output_path)
+translate_pptx(input_file=input_file, target_language="zh-CN", output_file=output_file)
