@@ -5,6 +5,7 @@ from pptx.chart.data import CategoryChartData
 # from pptx.enum.dml import MSO_THEME_COLOR
 from openai import OpenAI
 import os
+import argparse
 
 # 推荐做法：从环境变量中安全地获取API密钥，如果环境变量未设置，则使用硬编码的备份值
 # Powershell命令：[Environment]::SetEnvironmentVariable("siliconflow_API_KEY", "sk-zzzzzz", "User")
@@ -12,14 +13,26 @@ api_key = os.environ.get("siliconflow_API_KEY")
 if not api_key:
     api_key = "sk-xxxxxx"
 
-# 查找当前目录下的第一个 .pptx 文件作为输入文件
-pptx_files = [f for f in os.listdir(".") if f.endswith(".pptx")]
-if not pptx_files:
-    raise FileNotFoundError("No .pptx files found in the current directory.")
-input_file = pptx_files[0]
+# 添加命令行参数解析
+parser = argparse.ArgumentParser(description='翻译 PowerPoint 文件')
+parser.add_argument('target_language', nargs='?', default='zh-CN', help='目标语言代码 (默认: zh-CN)')
+parser.add_argument('input_file', nargs='?', help='输入的 PPT 文件')
+args = parser.parse_args()
+
+# 处理输入文件
+if args.input_file:
+    input_file = args.input_file
+    if not os.path.exists(input_file):
+        raise FileNotFoundError(f"找不到文件: {input_file}")
+else:
+    # 保持原有的自动查找逻辑
+    pptx_files = [f for f in os.listdir(".") if f.endswith(".pptx")]
+    if not pptx_files:
+        raise FileNotFoundError("当前目录下没有找到 .pptx 文件。")
+    input_file = pptx_files[0]
 
 # 生成输出文件名
-output_file = os.path.splitext(input_file)[0] + "-cn" + os.path.splitext(input_file)[1]
+output_file = os.path.splitext(input_file)[0] + f"-{args.target_language}" + os.path.splitext(input_file)[1]
 
 # 默认字体
 font_modified = "Microsoft YaHei Light"
@@ -182,4 +195,4 @@ def translate_pptx(input_file, target_language="zh-CN", output_file="translated.
 
 
 # 执行翻译
-translate_pptx(input_file=input_file, target_language="zh-CN", output_file=output_file)
+translate_pptx(input_file=input_file, target_language=args.target_language, output_file=output_file)
