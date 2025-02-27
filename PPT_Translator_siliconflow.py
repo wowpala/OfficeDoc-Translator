@@ -41,7 +41,7 @@ font_modified = "Microsoft YaHei Light"
 client = OpenAI(api_key=api_key, base_url="https://api.siliconflow.cn/v1")
 
 
-def translate_text(text, target_language="zh-CN"):
+def translate_text(text, target_language):
     if not text or len(text.strip()) < 2:
         return text
     try:
@@ -152,7 +152,7 @@ def translate_slide_master(slide_master, target_language):
             translate_shape(shape, target_language)
 
 
-def translate_pptx(input_file, target_language="zh-CN", output_file="translated.pptx"):
+def translate_pptx(input_file, target_language, output_file):
     prs = Presentation(input_file)
 
     # Translate slide masters
