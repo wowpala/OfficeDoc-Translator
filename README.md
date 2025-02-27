@@ -16,6 +16,6 @@ pip install python-pptx
 
 ### 使用方法
 ```shell
-python PPT_Translator_siliconflow.py zh-CN input.pptx
+python PPT_Translator_siliconflow.py zh-CN '.\input.pptx'
 ```
 支持指定语言，如`zh-CN`, `en-US`, `ja-JP`, `ko-KR`, `fr-FR`, `de-DE`, `es-ES`等
