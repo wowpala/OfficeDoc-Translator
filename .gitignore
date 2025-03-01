@@ -1,5 +1,6 @@
 .venv/
 bak/
 *.pptx
-*.code-workspace
+*.docx
 *.bak
+*.code-workspace
