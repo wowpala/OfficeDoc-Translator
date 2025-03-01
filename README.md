@@ -1,21 +1,28 @@
-# LLM-PPT-Translator
+# Use LLM to translate Office document
 
-### 申请 API Key
+Support `pptx` and `docx`.
+
+## Usage
+
+### Apply an API Key
 https://cloud.siliconflow.cn/account/ak
 
-### 选择免费模型
+### Choose a free model
 https://siliconflow.cn/zh-cn/models
 
-推荐`Qwen/Qwen2.5-7B-Instruct`
+`Qwen/Qwen2.5-7B-Instruct` is recommended.
 
-### 安装依赖包
+### Install package and dependencies
 ```shell
 pip install openai
 pip install python-pptx
+pip install python-docx
 ```
 
-### 使用方法
+### Run
 ```shell
-python PPT_Translator_siliconflow.py zh-CN '.\input.pptx'
+python OfficeDoc_Translator.py zh-CN '.\input.pptx'
 ```
-支持指定语言，如`zh-CN`, `en-US`, `ja-JP`, `ko-KR`, `fr-FR`, `de-DE`, `es-ES`等
+
+You can specify the language you want to translate to. For example:
+`zh-CN`, `en-US`, `ja-JP`, `ko-KR`, `fr-FR`, `de-DE`, `es-ES`, etc.
