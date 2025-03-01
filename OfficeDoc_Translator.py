@@ -1,11 +1,16 @@
 from pptx import Presentation
 from pptx.enum.shapes import MSO_SHAPE_TYPE
 from pptx.chart.data import CategoryChartData
+# 添加docx库导入
+import docx
+import re
 
 # from pptx.enum.dml import MSO_THEME_COLOR
 from openai import OpenAI
 import os
 import argparse
+import signal
+import sys
 
 # 推荐做法：从环境变量中安全地获取API密钥，如果环境变量未设置，则使用硬编码的备份值
 # Powershell命令：[Environment]::SetEnvironmentVariable("siliconflow_API_KEY", "sk-zzzzzz", "User")
@@ -14,22 +19,44 @@ if not api_key:
     api_key = "sk-xxxxxx"
 
 # 添加命令行参数解析
-parser = argparse.ArgumentParser(description='翻译 PowerPoint 文件')
+parser = argparse.ArgumentParser(description='翻译 PowerPoint 或 Word 文件')
 parser.add_argument('target_language', nargs='?', default='zh-CN', help='目标语言代码 (默认: zh-CN)')
-parser.add_argument('input_file', nargs='?', help='输入的 PPT 文件')
+parser.add_argument('input_file', nargs='?', help='输入的 PPT 或 Word 文件')
+parser.add_argument('--type', choices=['ppt', 'word'], help='指定文件类型 (ppt 或 word)')
 args = parser.parse_args()
 
 # 处理输入文件
 if args.input_file:
     input_file = args.input_file
+    print(f"使用指定的输入文件: {input_file}")
     if not os.path.exists(input_file):
         raise FileNotFoundError(f"找不到文件: {input_file}")
+    # 根据文件扩展名确定文件类型
+    file_ext = os.path.splitext(input_file)[1].lower()
+    if args.type:
+        file_type = args.type
+    else:
+        if file_ext in ['.pptx', '.ppt']:
+            file_type = 'ppt'
+        elif file_ext in ['.docx', '.doc']:
+            file_type = 'word'
+        else:
+            raise ValueError(f"不支持的文件类型: {file_ext}")
 else:
-    # 保持原有的自动查找逻辑
-    pptx_files = [f for f in os.listdir(".") if f.endswith(".pptx")]
-    if not pptx_files:
-        raise FileNotFoundError("当前目录下没有找到 .pptx 文件。")
-    input_file = pptx_files[0]
+    # 保持原有的自动查找逻辑，但增加对Word文件的支持
+    if args.type == 'word':
+        docx_files = [f for f in os.listdir(".") if f.endswith(".docx") or f.endswith(".doc")]
+        if not docx_files:
+            raise FileNotFoundError("当前目录下没有找到 .docx 或 .doc 文件。")
+        input_file = docx_files[0]
+        file_type = 'word'
+    else:  # 默认为PPT或明确指定为PPT
+        pptx_files = [f for f in os.listdir(".") if f.endswith(".pptx") or f.endswith(".ppt")]
+        if not pptx_files:
+            raise FileNotFoundError("当前目录下没有找到 .pptx 或 .ppt 文件。")
+        input_file = pptx_files[0]
+        file_type = 'ppt'
+    print(f"自动选择的输入文件: {input_file}")
 
 # 生成输出文件名
 output_file = os.path.splitext(input_file)[0] + f"-{args.target_language}" + os.path.splitext(input_file)[1]
@@ -73,6 +100,10 @@ def translate_text(text, target_language):
         print(f"Translation error: {e}")
         return text
 
+def split_into_sentences(text):
+    pattern = r"(?<!\w\.\w.)(?<![A-Z][a-z]\.)(?<=\.|\?|\!)\s"
+    sentences = re.split(pattern, text)
+    return [s.strip() for s in sentences if s.strip()]
 
 def safe_set_font_color(run):
     try:
@@ -80,7 +111,6 @@ def safe_set_font_color(run):
             run.font.color.rgb = run.font.color.rgb
     except AttributeError:
         pass
-
 
 def translate_text_frame(text_frame, target_language):
     for paragraph in text_frame.paragraphs:
@@ -95,13 +125,11 @@ def translate_text_frame(text_frame, target_language):
                 run.font.size = run.font.size
                 safe_set_font_color(run)
 
-
 def translate_table(table, target_language):
     for row in table.rows:
         for cell in row.cells:
             if cell.text_frame:
                 translate_text_frame(cell.text_frame, target_language)
-
 
 def translate_chart(chart, target_language):
     chart_data = chart.chart_title
@@ -118,11 +146,9 @@ def translate_chart(chart, target_language):
             chart.chart_title.text_frame.text, target_language
         )
 
-
 def translate_group_shape(group_shape, target_language):
     for shape in group_shape.shapes:
         translate_shape(shape, target_language)
-
 
 def translate_shape(shape, target_language):
     if shape.has_text_frame:
@@ -143,14 +169,12 @@ def translate_shape(shape, target_language):
         except Exception as e:
             print(f"Error translating complex shape: {e}")
 
-
 def translate_slide_master(slide_master, target_language):
     for shape in slide_master.shapes:
         translate_shape(shape, target_language)
     for layout in slide_master.slide_layouts:
         for shape in layout.shapes:
             translate_shape(shape, target_language)
-
 
 def translate_pptx(input_file, target_language, output_file):
     prs = Presentation(input_file)
@@ -193,6 +217,84 @@ def translate_pptx(input_file, target_language, output_file):
     prs.save(output_file)
     print(f"Translated PPT saved to {output_file}")
 
+def safe_set_font(run):
+    try:
+        run.font.name = font_modified
+    except AttributeError:
+        pass
 
-# 执行翻译
-translate_pptx(input_file=input_file, target_language=args.target_language, output_file=output_file)
+def translate_paragraph(paragraph, target_language):
+    try:
+        full_text = paragraph.text
+        if not full_text.strip():
+            return
+
+        translated_text = translate_text(full_text, target_language)
+
+        # 清除现有runs
+        for _ in range(len(paragraph.runs)):
+            p = paragraph._element
+            p.remove(p.r_lst[0])
+
+        # 添加新的run，包含翻译后的文本
+        new_run = paragraph.add_run(translated_text)
+        safe_set_font(new_run)
+
+        print(f"原文: {full_text[:50]}...")
+        print(f"译文: {translated_text[:50]}...")
+    except Exception as e:
+        print(f"翻译段落时出错: {e}")
+
+def translate_word_table(table, target_language):
+    for row in table.rows:
+        for cell in row.cells:
+            for paragraph in cell.paragraphs:
+                translate_paragraph(paragraph, target_language)
+
+def translate_docx(input_file, target_language, output_file):
+    try:
+        print(f"正在翻译Word文档: {input_file}")
+        doc = docx.Document(input_file)
+        
+        # 翻译主文档内容
+        for paragraph in doc.paragraphs:
+            translate_paragraph(paragraph, target_language)
+
+        # 翻译表格
+        for table in doc.tables:
+            translate_word_table(table, target_language)
+
+        # 翻译页眉和页脚
+        for section in doc.sections:
+            for header in section.header.paragraphs:
+                translate_paragraph(header, target_language)
+            for footer in section.footer.paragraphs:
+                translate_paragraph(footer, target_language)
+
+        # 翻译文档属性
+        if hasattr(doc.core_properties, 'title') and doc.core_properties.title:
+            doc.core_properties.title = translate_text(
+                doc.core_properties.title, target_language
+            )
+        if hasattr(doc.core_properties, 'subject') and doc.core_properties.subject:
+            doc.core_properties.subject = translate_text(
+                doc.core_properties.subject, target_language
+            )
+
+        doc.save(output_file)
+        print(f"翻译后的Word文档已保存至 {output_file}")
+    except Exception as e:
+        print(f"处理Word文档时出错: {e}")
+
+def signal_handler(sig, frame):
+    sys.exit(0)
+
+signal.signal(signal.SIGINT, signal_handler)
+
+# 根据文件类型执行相应的翻译
+if file_type == 'ppt':
+    print(f"将翻译PPT文件 '{input_file}' 为 {args.target_language} 语言")
+    translate_pptx(input_file=input_file, target_language=args.target_language, output_file=output_file)
+else:  # word
+    print(f"将翻译Word文件 '{input_file}' 为 {args.target_language} 语言")
+    translate_docx(input_file=input_file, target_language=args.target_language, output_file=output_file)
