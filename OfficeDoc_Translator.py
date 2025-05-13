@@ -73,7 +73,7 @@ def translate_text(text, target_language):
         return text
     try:
         response = client.chat.completions.create(
-            model="Qwen/Qwen2.5-7B-Instruct",
+            model="Qwen/Qwen3-8B",
             #            model='THUDM/glm-4-9b-chat',
             messages=[
                 {
@@ -94,6 +94,7 @@ def translate_text(text, target_language):
                 {"role": "user", "content": text},
             ],
             temperature=0.2,
+            extra_body={"enable_thinking": False},
         )
         return response.choices[0].message.content.strip()
     except Exception as e:
