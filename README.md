@@ -8,9 +8,9 @@ Support `pptx` and `docx`.
 https://cloud.siliconflow.cn/account/ak
 
 ### Choose a free model
-https://siliconflow.cn/zh-cn/models
+https://cloud.siliconflow.cn/models
 
-`Qwen/Qwen2.5-7B-Instruct` is recommended.
+`Qwen/Qwen2.5-7B-Instruct` or `Qwen/Qwen3-8B` is recommended.
 
 ### Install package and dependencies
 ```shell

@@ -11,12 +11,18 @@ import os
 import argparse
 import signal
 import sys
+import httpx
 
-# 推荐做法：从环境变量中安全地获取API密钥，如果环境变量未设置，则使用硬编码的备份值
-# Powershell命令：[Environment]::SetEnvironmentVariable("siliconflow_API_KEY", "sk-zzzzzz", "User")
-api_key = os.environ.get("siliconflow_API_KEY")
+# 初始化OpenAI客户端
+MODEL_NAME = "Qwen/Qwen3-8B" # 使用的翻译模型
+# 推荐做法：从环境变量中安全地获取API密钥，如果环境变量未设置，则使用硬编码的备份值。Powershell命令：[Environment]::SetEnvironmentVariable("LLM_API_KEY", "sk-zzzzzz", "User")
+api_key = os.environ.get("LLM_API_KEY") 
 if not api_key:
     api_key = "sk-xxxxxx"
+
+# 创建不验证 SSL 证书并使用的 httpx 客户端
+http_client = httpx.Client(verify=False)
+client = OpenAI(api_key=api_key, base_url="https://api.siliconflow.cn/v1", http_client=http_client) 
 
 # 添加命令行参数解析
 parser = argparse.ArgumentParser(description='翻译 PowerPoint 或 Word 文件')
@@ -64,17 +70,12 @@ output_file = os.path.splitext(input_file)[0] + f"-{args.target_language}" + os.
 # 默认字体
 font_modified = "Microsoft YaHei Light"
 
-# 初始化OpenAI客户端
-client = OpenAI(api_key=api_key, base_url="https://api.siliconflow.cn/v1")
-
-
 def translate_text(text, target_language):
     if not text or len(text.strip()) < 2:
         return text
     try:
         response = client.chat.completions.create(
-            model="Qwen/Qwen3-8B",
-            #            model='THUDM/glm-4-9b-chat',
+            model=MODEL_NAME,
             messages=[
                 {
                     "role": "system",
