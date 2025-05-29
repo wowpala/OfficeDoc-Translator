@@ -21,7 +21,7 @@ pip install python-docx
 
 ### Run
 ```shell
-python OfficeDoc_Translator.py zh-CN '.\input.pptx'
+python OfficeDoc_Translator.py '.\input.pptx' zh-CN
 ```
 
 You can specify the language you want to translate to. For example:

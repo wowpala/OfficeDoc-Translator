@@ -26,10 +26,18 @@ client = OpenAI(api_key=api_key, base_url="https://api.siliconflow.cn/v1", http_
 
 # 添加命令行参数解析
 parser = argparse.ArgumentParser(description='翻译 PowerPoint 或 Word 文件')
-parser.add_argument('target_language', nargs='?', default='zh-CN', help='目标语言代码 (默认: zh-CN)')
 parser.add_argument('input_file', nargs='?', help='输入的 PPT 或 Word 文件')
+parser.add_argument('target_language', nargs='?', default='zh-CN', help='目标语言代码 (默认: zh-CN)')
 parser.add_argument('--type', choices=['ppt', 'word'], help='指定文件类型 (ppt 或 word)')
 args = parser.parse_args()
+
+# 检查第二个参数是否是语言代码还是被误认为是语言的文件路径
+if args.target_language and (args.target_language.startswith('.\\') or args.target_language.startswith('./')):
+    # 这可能是文件路径，而不是语言代码
+    input_file = args.target_language
+    args.target_language = 'zh-CN'  # 重置为默认语言
+    args.input_file = input_file
+    print(f"警告: 参数 '{input_file}' 看起来像文件路径而不是语言代码。已将其设为输入文件，使用默认中文翻译。")
 
 # 处理输入文件
 if args.input_file:
@@ -295,8 +303,14 @@ signal.signal(signal.SIGINT, signal_handler)
 
 # 根据文件类型执行相应的翻译
 if file_type == 'ppt':
-    print(f"将翻译PPT文件 '{input_file}' 为 {args.target_language} 语言")
+    if args.target_language == 'zh-CN' and len(sys.argv) <= 2:  # 只提供了文件名或没有参数，使用默认中文
+        print(f"将翻译PPT文件 '{input_file}' 为中文")
+    else:
+        print(f"将翻译PPT文件 '{input_file}' 为 {args.target_language} 语言")
     translate_pptx(input_file=input_file, target_language=args.target_language, output_file=output_file)
 else:  # word
-    print(f"将翻译Word文件 '{input_file}' 为 {args.target_language} 语言")
+    if args.target_language == 'zh-CN' and len(sys.argv) <= 2:  # 只提供了文件名或没有参数，使用默认中文
+        print(f"将翻译Word文件 '{input_file}' 为中文")
+    else:
+        print(f"将翻译Word文件 '{input_file}' 为 {args.target_language} 语言")
     translate_docx(input_file=input_file, target_language=args.target_language, output_file=output_file)
