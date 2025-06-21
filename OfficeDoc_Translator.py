@@ -117,8 +117,7 @@ def split_into_sentences(text):
 
 def safe_set_font_color(run):
     try:
-        if run.font.color.rgb:
-            run.font.color.rgb = run.font.color.rgb
+        pass
     except AttributeError:
         pass
 
