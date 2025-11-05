@@ -167,11 +167,9 @@ def translate_text(text, target_language):
             model=MODEL_NAME,
             messages=[
                 {
-                    "role": "system",
-                    "content": f"""把下面的文本翻译成<{target_language}>，不要额外解释。 
-                <source_text>""",
+                    "role": "user",
+                    "content": f"把下面的文本翻译成{target_language}，不要额外解释。\n\n{text}",
                 },
-                {"role": "user", "content": text},
             ],
             temperature=0.2,
             top_p=0.6,
