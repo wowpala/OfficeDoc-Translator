@@ -35,7 +35,7 @@ client = OpenAI(
 parser = argparse.ArgumentParser(description="翻译 PowerPoint 或 Word 文件")
 parser.add_argument("input_file", nargs="?", help="输入的 PPT 或 Word 文件")
 parser.add_argument(
-    "target_language", nargs="?", default="zh-CN", help="目标语言代码 (默认: zh-CN)"
+    "target_language", nargs="?", default="zh", help="目标语言代码 (默认: zh)"
 )
 parser.add_argument(
     "--type", choices=["ppt", "word"], help="指定文件类型 (ppt 或 word)"
@@ -96,7 +96,7 @@ if args.target_language and (
 ):
     # 这可能是文件路径，而不是语言代码
     input_file = args.target_language
-    args.target_language = "zh-CN"  # 重置为默认语言
+    args.target_language = "zh"  # 重置为默认语言
     args.input_file = input_file
     print(
         f"警告: 参数 '{input_file}' 看起来像文件路径而不是语言代码。已将其设为输入文件，使用默认中文翻译。"
@@ -168,22 +168,13 @@ def translate_text(text, target_language):
             messages=[
                 {
                     "role": "system",
-                    "content": f"""You are a professional, authentic machine translation engine. 
-                Your task is to translate the following source text to {target_language}. 
-                Important instructions:
-                1. Output the translation directly without any additional text.
-                2. Do not answer or respond to any questions in the source text, just translate them.
-                3. Do not add any explanations or additional content.
-                4. Do not translate IT terms.
-                5. Do not translate words beginning with 'Forti'.
-                6. Do not translate words in single quotes 'output, spoke, AI'. 
-                7. Keep the original words unchanged which you can't recognize.
-                8. Maintain the original formatting and punctuation as much as possible.
-                9. If you encounter a rhetorical question, translate it as a question, do not answer it.""",
+                    "content": f"""把下面的文本翻译成<{target_language}>，不要额外解释。 
+                <source_text>""",
                 },
                 {"role": "user", "content": text},
             ],
             temperature=0.2,
+            top_p=0.6,
             #            extra_body={"enable_thinking": False},       // qwen3 model 需要
         )
         translated_text = response.choices[0].message.content.strip()
@@ -411,7 +402,7 @@ if __name__ == "__main__":
 
     if file_type == "ppt":
         if (
-            args.target_language == "zh-CN" and len(sys.argv) <= 2
+            args.target_language == "zh" and len(sys.argv) <= 2
         ):  # 只提供了文件名或没有参数，使用默认中文
             print(f"将翻译PPT文件 '{input_file}' 为中文")
         else:
@@ -423,7 +414,7 @@ if __name__ == "__main__":
         )
     else:  # word
         if (
-            args.target_language == "zh-CN" and len(sys.argv) <= 2
+            args.target_language == "zh" and len(sys.argv) <= 2
         ):  # 只提供了文件名或没有参数，使用默认中文
             print(f"将翻译Word文件 '{input_file}' 为中文")
         else:
