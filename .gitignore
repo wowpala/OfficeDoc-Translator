@@ -1,5 +1,6 @@
 .venv/
 bak/
+cache/
 *.pptx
 *.docx
 *.bak

@@ -2,6 +2,10 @@
 
 Support `pptx` and `docx`.
 
+## Update 20250623
+
+Add cache.
+
 ## Usage
 
 ### Apply an API Key
