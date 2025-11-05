@@ -14,7 +14,7 @@ https://cloud.siliconflow.cn/account/ak
 ### Choose a free model
 https://cloud.siliconflow.cn/models
 
-`Qwen/Qwen2.5-7B-Instruct` or `Qwen/Qwen3-8B` is recommended.
+`tencent/Hunyuan-MT-7B` or `Qwen/Qwen3-8B` is recommended.
 
 ### Install package and dependencies
 ```shell
@@ -25,8 +25,8 @@ pip install python-docx
 
 ### Run
 ```shell
-python OfficeDoc_Translator.py '.\input.pptx' zh-CN
+python OfficeDoc_Translator.py '.\input.pptx' zh
 ```
 
 You can specify the language you want to translate to. For example:
-`zh-CN`, `en-US`, `ja-JP`, `ko-KR`, `fr-FR`, `de-DE`, `es-ES`, etc.
+`zh`, `en`, `zh-Hant`, `ja`, `ko`, `fr`, `es`, etc.
