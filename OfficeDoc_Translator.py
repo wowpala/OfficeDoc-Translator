@@ -19,7 +19,7 @@ import json
 import hashlib
 
 # 初始化OpenAI客户端
-MODEL_NAME = "tencent/Hunyuan-MT-7B"  # 使用的翻译模型
+MODEL_NAME = "Qwen/Qwen3-8B"  # 使用的翻译模型
 # 推荐做法：从环境变量中安全地获取API密钥，如果环境变量未设置，则使用硬编码的备份值。Powershell命令：[Environment]::SetEnvironmentVariable("LLM_API_KEY", "sk-zzzzzz", "User")
 api_key = os.environ.get("LLM_API_KEY")
 if not api_key:
