@@ -147,7 +147,7 @@ output_file = (
 )
 
 # 默认字体
-font_modified = "Microsoft YaHei Light"
+font_modified = "Microsoft YaHei"
 
 
 def translate_text(text, target_language):
@@ -174,12 +174,14 @@ def translate_text(text, target_language):
                 1. Output the translation directly without any additional text.
                 2. Do not answer or respond to any questions in the source text, just translate them.
                 3. Do not add any explanations or additional content.
-                4. Do not translate IT terms.
-                5. Do not translate words beginning with 'Forti'.
-                6. Do not translate words in single quotes 'output, spoke, AI'. 
-                7. Keep the original words unchanged which you can't recognize.
-                8. Maintain the original formatting and punctuation as much as possible.
-                9. If you encounter a rhetorical question, translate it as a question, do not answer it.""",
+                4. Do not translate the following terms:
+                - IT terms;
+                - Numerical digits;
+                - Words beginning with 'Forti'；
+                - Words in single quotes 'output, spoke, AI, Fabric, SD-WAN, SASE, ZTNA'. 
+                5. Keep the original words unchanged which you can't recognize.
+                6. Maintain the original formatting and punctuation as much as possible.
+                7. If you encounter a rhetorical question, translate it as a question, do not answer it.""",
                 },
                 {"role": "user", "content": text},
             ],
