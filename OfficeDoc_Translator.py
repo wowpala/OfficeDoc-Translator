@@ -2,7 +2,7 @@ from pptx import Presentation
 from pptx.enum.shapes import MSO_SHAPE_TYPE
 from pptx.chart.data import CategoryChartData
 
-# 添加docx库导入
+# Add docx library import
 import docx
 import re
 
@@ -14,41 +14,75 @@ import signal
 import sys
 import httpx
 
-# 添加json和hashlib模块
+# Add json and hashlib modules
 import json
 import hashlib
 
-# 初始化OpenAI客户端
-MODEL_NAME = "Qwen/Qwen3-8B"  # 使用的翻译模型
-# 推荐做法：从环境变量中安全地获取API密钥，如果环境变量未设置，则使用硬编码的备份值。Powershell命令：[Environment]::SetEnvironmentVariable("LLM_API_KEY", "sk-zzzzzz", "User")
-api_key = os.environ.get("LLM_API_KEY")
-if not api_key:
-    api_key = "sk-xxxxxx"
 
-# 创建不验证 SSL 证书并使用的 httpx 客户端
+# Load config from .env file
+ENV_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".env")
+
+def load_env():
+    config = {}
+    if os.path.exists(ENV_PATH):
+        with open(ENV_PATH, "r", encoding="utf-8") as f:
+            for line in f:
+                line = line.strip()
+                if line and not line.startswith("#") and "=" in line:
+                    key, value = line.split("=", 1)
+                    config[key.strip()] = value.strip()
+    return config
+
+env_config = load_env()
+
+MODEL_NAME = env_config.get("MODEL_NAME", "Qwen/Qwen3-8B")
+api_key = env_config.get("LLM_API_KEY", "")
+ENDPOINT = env_config.get("ENDPOINT", "https://api.siliconflow.cn/v1")
+TEMPERATURE = float(env_config.get("TEMPERATURE", "0.7"))
+ENABLE_THINKING = env_config.get("ENABLE_THINKING", "false").lower() == "true"
+
+# Load prompt template
+PROMPT_TEMPLATE_PATH = os.path.join(
+    os.path.dirname(os.path.abspath(__file__)), "llm_prompt.txt"
+)
+if os.path.exists(PROMPT_TEMPLATE_PATH):
+    with open(PROMPT_TEMPLATE_PATH, "r", encoding="utf-8") as f:
+        PROMPT_TEMPLATE = f.read()
+else:
+    PROMPT_TEMPLATE = (
+        "You are a professional translator. Translate to {target_language}."
+    )
+
+
+def get_prompt(target_language):
+    return PROMPT_TEMPLATE.format(target_language=target_language)
+
+
+# Create httpx client without SSL verification
 http_client = httpx.Client(verify=False)
-client = OpenAI(
-    api_key=api_key, base_url="https://api.siliconflow.cn/v1", http_client=http_client
-)
+client = OpenAI(api_key=api_key, base_url=ENDPOINT, http_client=http_client)
 
-# 添加命令行参数解析
-parser = argparse.ArgumentParser(description="翻译 PowerPoint 或 Word 文件")
-parser.add_argument("input_file", nargs="?", help="输入的 PPT 或 Word 文件")
+# Parse command line arguments
+parser = argparse.ArgumentParser(description="Translate PowerPoint or Word files")
+parser.add_argument("input_file", nargs="?", help="Input PPT or Word file")
 parser.add_argument(
-    "target_language", nargs="?", default="zh-CN", help="目标语言代码 (默认: zh-CN)"
+    "target_language",
+    nargs="?",
+    default="zh-CN",
+    help="Target language code (default: zh-CN)",
 )
 parser.add_argument(
-    "--type", choices=["ppt", "word"], help="指定文件类型 (ppt 或 word)"
+    "--type", choices=["ppt", "word"], help="Specify file type (ppt or word)"
 )
-parser.add_argument("--no-cache", action="store_true", help="禁用翻译缓存")
+parser.add_argument("--no-cache", action="store_true", help="Disable translation cache")
 args = parser.parse_args()
 
-# 创建翻译缓存
+# Create translation cache
 translation_cache = {}
 cache_file = None
-cache_hit_count = 0  # 新增：缓存命中计数
+cache_hit_count = 0  # Cache hit count
 
-# 全局缓存：每种目标语言一个缓存文件
+# Global cache: one cache file per target language
 
 
 def init_cache():
@@ -59,20 +93,20 @@ def init_cache():
     cache_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "cache")
     os.makedirs(cache_dir, exist_ok=True)
 
-    # 以目标语言为单位缓存
+    # Cache per target language
     cache_filename = f"global-{args.target_language}.json"
     cache_file = os.path.join(cache_dir, cache_filename)
 
-    # 加载现有缓存（如果存在）
+    # Load existing cache if exists
     if os.path.exists(cache_file):
         try:
             with open(cache_file, "r", encoding="utf-8") as f:
                 translation_cache = json.load(f)
             print(
-                f"已加载 {len(translation_cache)} 条翻译缓存（全局，目标语言：{args.target_language}）"
+                f"Loaded {len(translation_cache)} translation cache entries (global, target language: {args.target_language})"
             )
         except Exception as e:
-            print(f"加载缓存失败: {e}")
+            print(f"Failed to load cache: {e}")
             translation_cache = {}
 
 
@@ -84,31 +118,31 @@ def save_cache():
         with open(cache_file, "w", encoding="utf-8") as f:
             json.dump(translation_cache, f, ensure_ascii=False, indent=2)
         print(
-            f"已保存 {len(translation_cache)} 条翻译缓存（全局，目标语言：{args.target_language}）"
+            f"Saved {len(translation_cache)} translation cache entries (global, target language: {args.target_language})"
         )
     except Exception as e:
-        print(f"保存缓存失败: {e}")
+        print(f"Failed to save cache: {e}")
 
 
-# 检查第二个参数是否是语言代码还是被误认为是语言的文件路径
+# Check if second argument is a language code or a file path
 if args.target_language and (
     args.target_language.startswith(".\\") or args.target_language.startswith("./")
 ):
-    # 这可能是文件路径，而不是语言代码
+    # This might be a file path, not a language code
     input_file = args.target_language
-    args.target_language = "zh-CN"  # 重置为默认语言
+    args.target_language = "zh-CN"  # Reset to default language
     args.input_file = input_file
     print(
-        f"警告: 参数 '{input_file}' 看起来像文件路径而不是语言代码。已将其设为输入文件，使用默认中文翻译。"
+        f"Warning: Argument '{input_file}' looks like a file path, not a language code. Using as input file with default Chinese translation."
     )
 
-# 处理输入文件
+# Handle input file
 if args.input_file:
     input_file = args.input_file
-    print(f"使用指定的输入文件: {input_file}")
+    print(f"Using specified input file: {input_file}")
     if not os.path.exists(input_file):
-        raise FileNotFoundError(f"找不到文件: {input_file}")
-    # 根据文件扩展名确定文件类型
+        raise FileNotFoundError(f"File not found: {input_file}")
+    # Determine file type by extension
     file_ext = os.path.splitext(input_file)[1].lower()
     if args.type:
         file_type = args.type
@@ -118,35 +152,39 @@ if args.input_file:
         elif file_ext in [".docx", ".doc"]:
             file_type = "word"
         else:
-            raise ValueError(f"不支持的文件类型: {file_ext}")
+            raise ValueError(f"Unsupported file type: {file_ext}")
 else:
-    # 保持原有的自动查找逻辑，但增加对Word文件的支持
+    # Keep original auto-find logic, add Word file support
     if args.type == "word":
         docx_files = [
             f for f in os.listdir(".") if f.endswith(".docx") or f.endswith(".doc")
         ]
         if not docx_files:
-            raise FileNotFoundError("当前目录下没有找到 .docx 或 .doc 文件。")
+            raise FileNotFoundError(
+                "No .docx or .doc files found in current directory."
+            )
         input_file = docx_files[0]
         file_type = "word"
-    else:  # 默认为PPT或明确指定为PPT
+    else:  # Default to PPT or explicitly specified as PPT
         pptx_files = [
             f for f in os.listdir(".") if f.endswith(".pptx") or f.endswith(".ppt")
         ]
         if not pptx_files:
-            raise FileNotFoundError("当前目录下没有找到 .pptx 或 .ppt 文件。")
+            raise FileNotFoundError(
+                "No .pptx or .ppt files found in current directory."
+            )
         input_file = pptx_files[0]
         file_type = "ppt"
-    print(f"自动选择的输入文件: {input_file}")
+    print(f"Auto-selected input file: {input_file}")
 
-# 生成输出文件名
+# Generate output filename
 output_file = (
     os.path.splitext(input_file)[0]
     + f"-{args.target_language}"
     + os.path.splitext(input_file)[1]
 )
 
-# 默认字体
+# Default font
 font_modified = "Microsoft YaHei"
 
 
@@ -154,12 +192,12 @@ def translate_text(text, target_language):
     if not text or len(text.strip()) < 2:
         return text
 
-    # 检查缓存中是否已有此翻译
+    # Check if translation already exists in cache
     cache_key = text.strip()
     global cache_hit_count
     if not args.no_cache and cache_key in translation_cache:
         cache_hit_count += 1
-        print(f"[缓存命中] {cache_key[:40]}{'...' if len(cache_key)>40 else ''}")
+        print(f"[Cache hit] {cache_key[:40]}{'...' if len(cache_key)>40 else ''}")
         return translation_cache[cache_key]
 
     try:
@@ -185,12 +223,36 @@ def translate_text(text, target_language):
                 },
                 {"role": "user", "content": text},
             ],
-            temperature=0.2,
-            #            extra_body={"enable_thinking": False},       // qwen3 model 需要
+            temperature=TEMPERATURE,
         )
+        if ENABLE_THINKING:
+            response = client.chat.completions.create(
+                model=MODEL_NAME,
+                messages=[
+                    {
+                        "role": "system",
+                        "content": get_prompt(target_language),
+                    },
+                    {"role": "user", "content": text},
+                ],
+                temperature=TEMPERATURE,
+                extra_body={"enable_thinking": ENABLE_THINKING},
+            )
+        else:
+            response = client.chat.completions.create(
+                model=MODEL_NAME,
+                messages=[
+                    {
+                        "role": "system",
+                        "content": get_prompt(target_language),
+                    },
+                    {"role": "user", "content": text},
+                ],
+                temperature=TEMPERATURE,
+            )
         translated_text = response.choices[0].message.content.strip()
 
-        # 只有未命中缓存时才写入缓存
+        # Only write to cache on cache miss
         if not args.no_cache:
             translation_cache[cache_key] = translated_text
 
@@ -340,19 +402,19 @@ def translate_paragraph(paragraph, target_language):
 
         translated_text = translate_text(full_text, target_language)
 
-        # 清除现有runs
+        # Clear existing runs
         for _ in range(len(paragraph.runs)):
             p = paragraph._element
             p.remove(p.r_lst[0])
 
-        # 添加新的run，包含翻译后的文本
+        # Add new run with translated text
         new_run = paragraph.add_run(translated_text)
         safe_set_font(new_run)
 
-        print(f"原文: {full_text[:50]}...")
-        print(f"译文: {translated_text[:50]}...")
+        print(f"Original: {full_text[:50]}...")
+        print(f"Translated: {translated_text[:50]}...")
     except Exception as e:
-        print(f"翻译段落时出错: {e}")
+        print(f"Error translating paragraph: {e}")
 
 
 def translate_word_table(table, target_language):
@@ -364,25 +426,25 @@ def translate_word_table(table, target_language):
 
 def translate_docx(input_file, target_language, output_file):
     try:
-        print(f"正在翻译Word文档: {input_file}")
+        print(f"Translating Word document: {input_file}")
         doc = docx.Document(input_file)
 
-        # 翻译主文档内容
+        # Translate main document content
         for paragraph in doc.paragraphs:
             translate_paragraph(paragraph, target_language)
 
-        # 翻译表格
+            # Translate tables
         for table in doc.tables:
             translate_word_table(table, target_language)
 
-        # 翻译页眉和页脚
+        # Translate header and footer
         for section in doc.sections:
             for header in section.header.paragraphs:
                 translate_paragraph(header, target_language)
             for footer in section.footer.paragraphs:
                 translate_paragraph(footer, target_language)
 
-        # 翻译文档属性
+        # Translate document properties
         if hasattr(doc.core_properties, "title") and doc.core_properties.title:
             doc.core_properties.title = translate_text(
                 doc.core_properties.title, target_language
@@ -393,31 +455,31 @@ def translate_docx(input_file, target_language, output_file):
             )
 
         doc.save(output_file)
-        print(f"翻译后的Word文档已保存至 {output_file}")
+        print(f"Translated Word document saved to {output_file}")
     except Exception as e:
-        print(f"处理Word文档时出错: {e}")
+        print(f"Error processing Word document: {e}")
 
 
 def signal_handler(sig, frame):
     if not args.no_cache:
-        save_cache()  # 退出前保存缓存
+        save_cache()  # Save cache before exit
     sys.exit(0)
 
 
 signal.signal(signal.SIGINT, signal_handler)
 
-# 根据文件类型执行相应的翻译
+# Translate based on file type
 if __name__ == "__main__":
-    # 初始化缓存
+    # Initialize cache
     init_cache()
 
     if file_type == "ppt":
         if (
             args.target_language == "zh-CN" and len(sys.argv) <= 2
-        ):  # 只提供了文件名或没有参数，使用默认中文
-            print(f"将翻译PPT文件 '{input_file}' 为中文")
+        ):  # Only filename or no args, use default Chinese
+            print(f"Translating PPT file '{input_file}' to Chinese")
         else:
-            print(f"将翻译PPT文件 '{input_file}' 为 {args.target_language} 语言")
+            print(f"Translating PPT file '{input_file}' to {args.target_language}")
         translate_pptx(
             input_file=input_file,
             target_language=args.target_language,
@@ -426,18 +488,18 @@ if __name__ == "__main__":
     else:  # word
         if (
             args.target_language == "zh-CN" and len(sys.argv) <= 2
-        ):  # 只提供了文件名或没有参数，使用默认中文
-            print(f"将翻译Word文件 '{input_file}' 为中文")
+        ):  # Only filename or no args, use default Chinese
+            print(f"Translating Word file '{input_file}' to Chinese")
         else:
-            print(f"将翻译Word文件 '{input_file}' 为 {args.target_language} 语言")
+            print(f"Translating Word file '{input_file}' to {args.target_language}")
         translate_docx(
             input_file=input_file,
             target_language=args.target_language,
             output_file=output_file,
         )
 
-    # 保存缓存
+    # Save cache
     save_cache()
-    # 新增：打印缓存命中次数
+    # Print cache hit count
     if not args.no_cache:
-        print(f"本次运行命中缓存 {cache_hit_count} 次")
+        print(f"Cache hits this run: {cache_hit_count}")
