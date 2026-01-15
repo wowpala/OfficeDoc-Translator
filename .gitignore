@@ -14,15 +14,8 @@ build/
 *.code-workspace
 .idea/
 
-# OS
-.DS_Store
-Thumbs.db
 
 # Project specific
-bak/
 cache/
-*.pptx
-*.docx
-*.bak
 .env
 
