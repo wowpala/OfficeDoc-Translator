@@ -201,30 +201,7 @@ def translate_text(text, target_language):
         return translation_cache[cache_key]
 
     try:
-        response = client.chat.completions.create(
-            model=MODEL_NAME,
-            messages=[
-                {
-                    "role": "system",
-                    "content": f"""You are a professional, authentic machine translation engine. 
-                Your task is to translate the following source text to {target_language}. 
-                Important instructions:
-                1. Output the translation directly without any additional text.
-                2. Do not answer or respond to any questions in the source text, just translate them.
-                3. Do not add any explanations or additional content.
-                4. Do not translate the following terms:
-                - IT terms;
-                - Numerical digits;
-                - Words beginning with 'Forti'；
-                - Words in single quotes 'output, spoke, AI, Fabric, SD-WAN, SASE, ZTNA'. 
-                5. Keep the original words unchanged which you can't recognize.
-                6. Maintain the original formatting and punctuation as much as possible.
-                7. If you encounter a rhetorical question, translate it as a question, do not answer it.""",
-                },
-                {"role": "user", "content": text},
-            ],
-            temperature=TEMPERATURE,
-        )
+
         if ENABLE_THINKING:
             response = client.chat.completions.create(
                 model=MODEL_NAME,
