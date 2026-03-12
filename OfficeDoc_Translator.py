@@ -7,12 +7,11 @@ import docx
 import re
 
 # from pptx.enum.dml import MSO_THEME_COLOR
-from openai import OpenAI
+import requests
 import os
 import argparse
 import signal
 import sys
-import httpx
 
 # Add json and hashlib modules
 import json
@@ -58,9 +57,9 @@ def get_prompt(target_language):
     return PROMPT_TEMPLATE.format(target_language=target_language)
 
 
-# Create httpx client without SSL verification
-http_client = httpx.Client(verify=False)
-client = OpenAI(api_key=api_key, base_url=ENDPOINT, http_client=http_client)
+# Disable SSL warnings when verify=False
+import urllib3
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 # Parse command line arguments
 parser = argparse.ArgumentParser(description="Translate PowerPoint or Word files")
@@ -201,33 +200,32 @@ def translate_text(text, target_language):
         return translation_cache[cache_key]
 
     try:
+        headers = {
+            "Authorization": f"Bearer {api_key}",
+            "Content-Type": "application/json"
+        }
+
+        payload = {
+            "model": MODEL_NAME,
+            "messages": [
+                {"role": "system", "content": get_prompt(target_language)},
+                {"role": "user", "content": text}
+            ],
+            "temperature": TEMPERATURE
+        }
 
         if ENABLE_THINKING:
-            response = client.chat.completions.create(
-                model=MODEL_NAME,
-                messages=[
-                    {
-                        "role": "system",
-                        "content": get_prompt(target_language),
-                    },
-                    {"role": "user", "content": text},
-                ],
-                temperature=TEMPERATURE,
-                extra_body={"enable_thinking": ENABLE_THINKING},
-            )
-        else:
-            response = client.chat.completions.create(
-                model=MODEL_NAME,
-                messages=[
-                    {
-                        "role": "system",
-                        "content": get_prompt(target_language),
-                    },
-                    {"role": "user", "content": text},
-                ],
-                temperature=TEMPERATURE,
-            )
-        translated_text = response.choices[0].message.content.strip()
+            payload["enable_thinking"] = True
+
+        response = requests.post(
+            f"{ENDPOINT}/chat/completions",
+            headers=headers,
+            json=payload,
+            verify=False
+        )
+        response.raise_for_status()
+
+        translated_text = response.json()["choices"][0]["message"]["content"].strip()
 
         # Only write to cache on cache miss
         if not args.no_cache:
