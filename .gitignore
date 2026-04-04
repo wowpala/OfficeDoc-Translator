@@ -15,9 +15,11 @@ uv.lock
 *.code-workspace
 .idea/
 .claude/
+CLAUDE.md
 
 
 # Project specific
 cache/
 .env
 ppt-translator-v2.7/
+*.env

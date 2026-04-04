@@ -40,6 +40,10 @@ ENDPOINT = env_config.get("ENDPOINT", "https://api.siliconflow.cn/v1")
 TEMPERATURE = float(env_config.get("TEMPERATURE", "0.7"))
 ENABLE_THINKING = env_config.get("ENABLE_THINKING", "false").lower() == "true"
 
+# Determine which API provider and set appropriate parameters
+IS_GROQ_API = "groq.com" in ENDPOINT.lower()
+REASONING_EFFORT = "default" if ENABLE_THINKING else "none"
+
 # Load prompt template
 PROMPT_TEMPLATE_PATH = os.path.join(
     os.path.dirname(os.path.abspath(__file__)), "llm_prompt.txt"
@@ -214,8 +218,10 @@ def translate_text(text, target_language):
             "temperature": TEMPERATURE
         }
 
-        if ENABLE_THINKING:
-            payload["enable_thinking"] = True
+        if IS_GROQ_API:
+            payload["reasoning_effort"] = REASONING_EFFORT
+        else:
+            payload["enable_thinking"] = ENABLE_THINKING
 
         response = requests.post(
             f"{ENDPOINT}/chat/completions",
@@ -336,11 +342,11 @@ def translate_pptx(input_file, target_language, output_file):
         for shape in slide.shapes:
             translate_shape(shape, target_language)
 
-        # Translate notes
-        if slide.has_notes_slide:
-            notes_slide = slide.notes_slide
-            if notes_slide.notes_text_frame:
-                translate_text_frame(notes_slide.notes_text_frame, target_language)
+        # Translate notes - commented out to skip translating notes
+        # if slide.has_notes_slide:
+        #     notes_slide = slide.notes_slide
+        #     if notes_slide.notes_text_frame:
+        #         translate_text_frame(notes_slide.notes_text_frame, target_language)
 
         # Translate header and footer
         if hasattr(slide, "header"):
