@@ -1,15 +1,15 @@
 # OfficeDoc Translator
 
-Translate PowerPoint (`.pptx`) and Word (`.docx`) documents using an OpenAI-compatible API.
+使用 OpenAI-compatible API 翻译 PowerPoint (`.pptx`) 和 Word (`.docx`) 文档。
 
 ## Features
 
-- PPTX / DOCX translation support
-- Uses `requests` to call a custom endpoint
-- Global cache to avoid duplicate text requests
-- Retry + exponential backoff + request interval to mitigate 429 / SSL EOF errors
-- Resume state — rerun after failure without starting over
-- PPT translates by paragraph by default; falls back to run-level when style differences are significant, reducing API calls
+- 支持 PPTX / DOCX 翻译
+- 使用 `requests` 调用自定义 endpoint
+- 全局 cache 减少重复文本请求
+- retry + exponential backoff + request interval，降低 429 / SSL EOF 影响
+- resume state 支持失败后重跑，不必从头重新请求
+- PPT 默认按段落翻译；样式差异明显时回退到 run 级，减少 API 调用次数
 
 ## Quick Start
 
@@ -25,7 +25,7 @@ uv sync
 Copy-Item .env.example .env
 ```
 
-Groq LLM API is recommended: get your key at [console.groq.com/keys](https://console.groq.com/keys), model `qwen/qwen3-32b` is suggested.
+推荐使用 Groq LLM API：在 [console.groq.com/keys](https://console.groq.com/keys) 获取 key，模型推荐 `qwen/qwen3-32b`。
 
 ```dotenv
 MODEL_NAME=qwen/qwen3-32b
@@ -42,7 +42,7 @@ SAVE_PROGRESS_EVERY_N=20
 RESUME_ENABLED=true
 ```
 
-Configuration reference:
+主要配置项：
 
 | Variable | Description | Default |
 |----------|-------------|---------|
@@ -62,7 +62,7 @@ Configuration reference:
 
 ### 3. Customize prompt
 
-Edit `llm_prompt.txt`. The `{target_language}` placeholder is replaced at runtime.
+编辑 `llm_prompt.txt`。其中 `{target_language}` 会在运行时替换。
 
 ## Usage
 
@@ -70,7 +70,7 @@ Edit `llm_prompt.txt`. The `{target_language}` placeholder is replaced at runtim
 uv run python OfficeDoc_Translator.py <input_file> <target_language>
 ```
 
-Examples:
+示例：
 
 ```powershell
 uv run python OfficeDoc_Translator.py .\input.pptx zh-CN
@@ -80,26 +80,26 @@ uv run python OfficeDoc_Translator.py .\input.pptx zh-CN --max-retries 6 --min-r
 uv run python OfficeDoc_Translator.py .\input.pptx zh-CN --no-resume --no-fail-fast
 ```
 
-Arguments:
+命令参数：
 
 | Argument | Description |
 |----------|-------------|
-| `input_file` | Input PPTX or DOCX file |
-| `target_language` | Target language code, defaults to `zh-CN` |
-| `--type` | Force file type: `ppt` / `word` |
-| `--no-cache` | Disable persistent cache |
-| `--resume` / `--no-resume` | Enable or disable resume state |
-| `--fail-fast` / `--no-fail-fast` | Abort on failure vs keep original text and continue |
-| `--max-retries` | Override max retries from `.env` |
-| `--min-request-interval` | Override min request interval from `.env` |
+| `input_file` | 输入 PPTX 或 DOCX 文件 |
+| `target_language` | 目标语言代码，默认 `zh-CN` |
+| `--type` | 强制文件类型：`ppt` / `word` |
+| `--no-cache` | 禁用持久化 cache |
+| `--resume` / `--no-resume` | 开启或关闭 resume state |
+| `--fail-fast` / `--no-fail-fast` | 失败后立即中止，或保留原文继续 |
+| `--max-retries` | 覆盖 `.env` 中的最大重试次数 |
+| `--min-request-interval` | 覆盖 `.env` 中的最小请求间隔 |
 
 ## Stability Notes
 
-- `cache/` only reduces duplicate text requests, cannot prevent instantaneous bursts.
-- `429 Too Many Requests` is mitigated by dedup, serial rate limiting, reading `Retry-After`, and exponential backoff.
-- `SSLEOFError / UNEXPECTED_EOF_WHILE_READING` are transient provider/network errors, mitigated by `Session` reuse, timeout, and retry.
-- Only the primary endpoint is used; no automatic provider fallback.
-- Fail-fast is enabled by default: a single translation unit aborts the task after exhausting retries, saves cache/state, and outputs failure statistics.
+- `cache/` 只能减少重复文本请求，不能防止瞬时 burst。
+- `429 Too Many Requests` 主要靠去重、串行限速、读取 `Retry-After`、以及 exponential backoff 缓解。
+- `SSLEOFError / UNEXPECTED_EOF_WHILE_READING` 属于 transient provider/network error，主要靠 `Session` 复用、timeout 和 retry 缓解。
+- 当前只使用主 endpoint，不做自动 provider fallback。
+- 默认启用 fail-fast：单个翻译单元在耗尽重试后会中止任务、保存 cache/state，并输出失败统计。
 
 ## Verification
 
