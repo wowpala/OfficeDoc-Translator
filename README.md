@@ -1,115 +1,110 @@
 # OfficeDoc Translator
 
-A tool to translate PowerPoint (`pptx`) and Word (`docx`) files using LLM.
+使用 OpenAI-compatible API 翻译 PowerPoint (`.pptx`) 和 Word (`.docx`) 文档。
 
 ## Features
 
-- Translate PPTX and DOCX files
-- Translation caching for faster repeated translations
-- Customizable prompts via `llm_prompt.txt`
-- Configurable via `.env` file
-- Support for mutual translation between multiple languages
-- Preserve original document format and layout
+- 支持 PPTX / DOCX 翻译
+- 使用 `requests` 调用自定义 endpoint
+- 全局 cache 减少重复文本请求
+- retry + exponential backoff + request interval，降低 429 / SSL EOF 影响
+- resume state 支持失败后重跑，不必从头重新请求
+- PPT 默认按段落翻译；样式差异明显时回退到 run 级，减少 API 调用次数
 
 ## Quick Start
 
-### 1. Get an API Key
-
-Obtain your API key from your chosen LLM service provider.
-
-### 2. Set Up Environment
-
-#### 2.1 Install Dependencies
-
-Use `uv` to manage dependencies:
+### 1. Install dependencies
 
 ```powershell
 uv sync
 ```
 
-#### 2.2 Configure Environment Variables
-
-Copy `.env.example` to `.env` and fill in your settings:
+### 2. Configure `.env`
 
 ```powershell
 Copy-Item .env.example .env
 ```
 
-**`.env` Configuration:**
+当前实际使用的 LLM API 推荐设置：
+
+```dotenv
+MODEL_NAME=qwen/qwen3-32b
+ENDPOINT=https://api.groq.com/openai/v1
+TEMPERATURE=0.7
+ENABLE_THINKING=false
+REQUEST_TIMEOUT_SECONDS=60
+MAX_RETRIES=4
+INITIAL_BACKOFF_SECONDS=1
+MAX_BACKOFF_SECONDS=20
+MIN_REQUEST_INTERVAL_SECONDS=0.75
+CONSECUTIVE_FAILURE_LIMIT=3
+SAVE_PROGRESS_EVERY_N=20
+RESUME_ENABLED=true
+```
+
+主要配置项：
 
 | Variable | Description | Default |
 |----------|-------------|---------|
-| `LLM_API_KEY` | Your API key | Required |
-| `MODEL_NAME` | Translation model | `gemini-3-pro-high` |
-| `ENDPOINT` | API endpoint | `https://api.siliconflow.cn/v1` |
-| `TEMPERATURE` | Response creativity (0.0-2.0) | `1` |
-| `ENABLE_THINKING` | Enable thinking mode | `false` |
+| `LLM_API_KEY` | API key | Required |
+| `MODEL_NAME` | Translation model | `qwen/qwen3-32b` |
+| `ENDPOINT` | OpenAI-compatible endpoint | `https://api.groq.com/openai/v1` |
+| `TEMPERATURE` | Sampling temperature | `0.7` |
+| `ENABLE_THINKING` | Provider-specific thinking toggle | `false` |
+| `REQUEST_TIMEOUT_SECONDS` | Connect/read timeout | `60` |
+| `MAX_RETRIES` | Retry count for 429 / 5xx / network errors | `4` |
+| `INITIAL_BACKOFF_SECONDS` | First backoff delay | `1` |
+| `MAX_BACKOFF_SECONDS` | Backoff cap | `20` |
+| `MIN_REQUEST_INTERVAL_SECONDS` | Minimum gap between requests | `0.75` |
+| `CONSECUTIVE_FAILURE_LIMIT` | Abort threshold after exhausted failures | `3` |
+| `SAVE_PROGRESS_EVERY_N` | Cache/state checkpoint interval | `20` |
+| `RESUME_ENABLED` | Enable resume state by default | `true` |
 
-#### 2.3 Customize Translation Prompt
+### 3. Customize prompt
 
-Edit the `llm_prompt.txt` file to customize translation instructions. Use `{target_language}` as a placeholder for the target language.
+编辑 `llm_prompt.txt`。其中 `{target_language}` 会在运行时替换。
 
 ## Usage
 
 ```powershell
-python OfficeDoc_Translator.py <input_file> <target_language>
+uv run python OfficeDoc_Translator.py <input_file> <target_language>
 ```
 
-**Examples:**
+示例：
 
 ```powershell
-# Translate to Chinese
-python OfficeDoc_Translator.py ./input.pptx zh-CN
-
-# Translate to English
-python OfficeDoc_Translator.py ./document.docx en-US
-
-# Specify file type explicitly
-python OfficeDoc_Translator.py ./file.pptx ja-JP --type ppt
+uv run python OfficeDoc_Translator.py .\input.pptx zh-CN
+uv run python OfficeDoc_Translator.py .\document.docx en-US
+uv run python OfficeDoc_Translator.py .\file.pptx ja-JP --type ppt
+uv run python OfficeDoc_Translator.py .\input.pptx zh-CN --max-retries 6 --min-request-interval 1.2
+uv run python OfficeDoc_Translator.py .\input.pptx zh-CN --no-resume --no-fail-fast
 ```
 
-**Arguments:**
+命令参数：
 
 | Argument | Description |
 |----------|-------------|
-| `input_file` | Input PPTX or DOCX file |
-| `target_language` | Target language code (default: `zh-CN`) |
-| `--type` | Force file type (`ppt` or `word`) |
-| `--no-cache` | Disable translation cache |
+| `input_file` | 输入 PPTX 或 DOCX 文件 |
+| `target_language` | 目标语言代码，默认 `zh-CN` |
+| `--type` | 强制文件类型：`ppt` / `word` |
+| `--no-cache` | 禁用持久化 cache |
+| `--resume` / `--no-resume` | 开启或关闭 resume state |
+| `--fail-fast` / `--no-fail-fast` | 失败后立即中止，或保留原文继续 |
+| `--max-retries` | 覆盖 `.env` 中的最大重试次数 |
+| `--min-request-interval` | 覆盖 `.env` 中的最小请求间隔 |
 
-**Supported Languages:**
+## Stability Notes
 
-`zh-CN`, `en-US`, `ja-JP`, `ko-KR`, `fr-FR`, `de-DE`, `es-ES`, etc.
+- `cache/` 只能减少重复文本请求，不能防止瞬时 burst。
+- 当前 README 的推荐配置基于本地实际在用的 `Groq + qwen/qwen3-32b` 组合。
+- `429 Too Many Requests` 主要靠去重、串行限速、读取 `Retry-After`、以及 exponential backoff 缓解。
+- `SSLEOFError / UNEXPECTED_EOF_WHILE_READING` 属于 transient provider/network error，主要靠 `Session` 复用、timeout 和 retry 缓解。
+- 当前只使用主 endpoint，不做自动 provider fallback。
+- 默认启用 fail-fast：单个翻译单元在耗尽重试后会中止任务、保存 cache/state，并输出失败统计。
 
-## Caching Mechanism
+## Verification
 
-Translation results are cached in the `cache/` directory. The cache is automatically loaded and saved.
-
-Use the `--no-cache` parameter to disable caching.
-
-## Technical Details
-
-- Uses OpenAI-compatible API format to call LLM
-- Uses `requests` library for HTTP calls
-- Supports custom API endpoints (configured via environment variables)
-- Minimizes LLM API calls (through caching mechanism)
-
-## Project Structure
-
+```powershell
+uv run python -m compileall -q .
+uv run python -m unittest discover -v
 ```
-OfficeDoc_Translator/
-├── OfficeDoc_Translator.py  # Main script
-├── llm_prompt.txt          # Translation prompt template
-├── .env.example            # Environment variable example
-├── .gitignore              # Git ignore file
-├── .python-version         # Python version
-├── pyproject.toml          # Project dependency configuration
-└── README.md               # Project documentation
-```
-
-## Notes
-
-- Please ensure your API key is securely stored in the `.env` file and not committed to version control
-- Translation quality depends on the capabilities of the selected model
-- Translation may take longer for large documents
-- The caching mechanism stores translation results in the `cache/` directory; regular cleaning can save disk space
