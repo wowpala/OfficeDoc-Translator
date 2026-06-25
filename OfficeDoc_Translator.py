@@ -31,7 +31,7 @@ FONT_MODIFIED = "Microsoft YaHei"
 DEFAULT_MODEL_NAME = "gemini-3-pro-high"
 DEFAULT_ENDPOINT = "https://api.siliconflow.cn/v1"
 DEFAULT_TEMPERATURE = 1.0
-DEFAULT_ENABLE_THINKING = False
+
 DEFAULT_REQUEST_TIMEOUT_SECONDS = 60.0
 DEFAULT_MAX_RETRIES = 4
 DEFAULT_INITIAL_BACKOFF_SECONDS = 1.0
@@ -133,7 +133,6 @@ class Config:
     model_name: str
     endpoint: str
     temperature: float
-    enable_thinking: bool
     request_timeout_seconds: float
     max_retries: int
     initial_backoff_seconds: float
@@ -149,7 +148,7 @@ class Config:
 
     @property
     def reasoning_effort(self) -> str:
-        return "medium" if self.enable_thinking else "none"
+        return "none"
 
 
 class LLMClient:
@@ -189,9 +188,9 @@ class LLMClient:
         }
 
         if self.config.is_groq_api:
-            payload["reasoning_effort"] = self.config.reasoning_effort
+            payload["reasoning_effort"] = "none"
         else:
-            payload["thinking"] = {"type": "enabled" if self.config.enable_thinking else "disabled"}
+            payload["thinking"] = {"type": "disabled"}
 
         last_error = ""
         for attempt in range(self.config.max_retries + 1):
@@ -586,9 +585,6 @@ def build_config(env_config: dict[str, str], args: argparse.Namespace) -> Config
         model_name=env_config.get("MODEL_NAME", DEFAULT_MODEL_NAME),
         endpoint=env_config.get("ENDPOINT", DEFAULT_ENDPOINT),
         temperature=env_float(env_config, "TEMPERATURE", DEFAULT_TEMPERATURE),
-        enable_thinking=env_bool(
-            env_config, "ENABLE_THINKING", DEFAULT_ENABLE_THINKING
-        ),
         request_timeout_seconds=env_float(
             env_config, "REQUEST_TIMEOUT_SECONDS", DEFAULT_REQUEST_TIMEOUT_SECONDS
         ),
