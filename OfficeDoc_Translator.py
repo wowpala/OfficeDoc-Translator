@@ -149,7 +149,7 @@ class Config:
 
     @property
     def reasoning_effort(self) -> str:
-        return "default" if self.enable_thinking else "none"
+        return "medium" if self.enable_thinking else "none"
 
 
 class LLMClient:
@@ -191,7 +191,7 @@ class LLMClient:
         if self.config.is_groq_api:
             payload["reasoning_effort"] = self.config.reasoning_effort
         else:
-            payload["enable_thinking"] = self.config.enable_thinking
+            payload["thinking"] = {"type": "enabled" if self.config.enable_thinking else "disabled"}
 
         last_error = ""
         for attempt in range(self.config.max_retries + 1):
