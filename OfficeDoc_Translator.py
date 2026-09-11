@@ -146,10 +146,6 @@ class Config:
     def is_groq_api(self) -> bool:
         return "groq.com" in self.endpoint.lower()
 
-    @property
-    def reasoning_effort(self) -> str:
-        return "none"
-
 
 class LLMClient:
     def __init__(
