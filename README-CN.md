@@ -31,7 +31,6 @@ Copy-Item .env.example .env
 MODEL_NAME=qwen/qwen3-32b
 ENDPOINT=https://api.groq.com/openai/v1
 TEMPERATURE=0.7
-ENABLE_THINKING=false
 REQUEST_TIMEOUT_SECONDS=60
 MAX_RETRIES=4
 INITIAL_BACKOFF_SECONDS=1
@@ -50,7 +49,7 @@ RESUME_ENABLED=true
 | `MODEL_NAME` | Translation model | `qwen/qwen3-32b` |
 | `ENDPOINT` | OpenAI-compatible endpoint | `https://api.groq.com/openai/v1` |
 | `TEMPERATURE` | Sampling temperature | `0.7` |
-| `ENABLE_THINKING` | Provider-specific thinking toggle | `false` |
+| `MAX_TOKENS` | 单次请求最大输出 token，需低于服务商 OTPM 限制 | `900` |
 | `REQUEST_TIMEOUT_SECONDS` | Connect/read timeout | `60` |
 | `MAX_RETRIES` | Retry count for 429 / 5xx / network errors | `4` |
 | `INITIAL_BACKOFF_SECONDS` | First backoff delay | `1` |
