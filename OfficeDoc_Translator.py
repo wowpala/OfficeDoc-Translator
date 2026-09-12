@@ -31,6 +31,9 @@ FONT_MODIFIED = "Microsoft YaHei"
 DEFAULT_MODEL_NAME = "gemini-3-pro-high"
 DEFAULT_ENDPOINT = "https://api.siliconflow.cn/v1"
 DEFAULT_TEMPERATURE = 1.0
+# Must stay below the provider's output-tokens-per-minute (OTPM) limit,
+# otherwise the request is rejected before it even runs.
+DEFAULT_MAX_TOKENS = 900
 
 DEFAULT_REQUEST_TIMEOUT_SECONDS = 60.0
 DEFAULT_MAX_RETRIES = 4
@@ -133,6 +136,7 @@ class Config:
     model_name: str
     endpoint: str
     temperature: float
+    max_tokens: int
     request_timeout_seconds: float
     max_retries: int
     initial_backoff_seconds: float
@@ -181,6 +185,7 @@ class LLMClient:
                 {"role": "user", "content": text},
             ],
             "temperature": self.config.temperature,
+            "max_tokens": self.config.max_tokens,
         }
 
         if self.config.is_groq_api:
@@ -208,6 +213,12 @@ class LLMClient:
                     raise TranslationRequestError(
                         self._http_error_message(response.status_code, response.text)
                     )
+                if self._is_output_token_limit_error(response.text):
+                    # Payload cannot fix itself on retry; fail fast so the
+                    # original text is kept and the run continues.
+                    raise TranslationRequestError(
+                        self._http_error_message(response.status_code, response.text)
+                    )
                 response.raise_for_status()
                 translated_text = (
                     response.json()["choices"][0]["message"]["content"].strip()
@@ -228,6 +239,8 @@ class LLMClient:
                 self.sleep_fn(delay)
             except TranslationRequestError as exc:
                 last_error = str(exc)
+                if self._is_output_token_limit_error(last_error):
+                    break
                 if attempt >= self.config.max_retries:
                     break
                 self.retry_count += 1
@@ -282,6 +295,15 @@ class LLMClient:
         )
         jitter = delay * 0.1 * self.random_fn()
         return delay + jitter
+
+    @staticmethod
+    def _is_output_token_limit_error(message: str) -> bool:
+        lowered = message.lower()
+        return (
+            "output tokens per minute" in lowered
+            or "expected output tokens exceed" in lowered
+            or "reduce max_tokens" in lowered
+        )
 
     @staticmethod
     def _http_error_message(status_code: int, body: str) -> str:
@@ -581,6 +603,7 @@ def build_config(env_config: dict[str, str], args: argparse.Namespace) -> Config
         model_name=env_config.get("MODEL_NAME", DEFAULT_MODEL_NAME),
         endpoint=env_config.get("ENDPOINT", DEFAULT_ENDPOINT),
         temperature=env_float(env_config, "TEMPERATURE", DEFAULT_TEMPERATURE),
+        max_tokens=env_int(env_config, "MAX_TOKENS", DEFAULT_MAX_TOKENS),
         request_timeout_seconds=env_float(
             env_config, "REQUEST_TIMEOUT_SECONDS", DEFAULT_REQUEST_TIMEOUT_SECONDS
         ),

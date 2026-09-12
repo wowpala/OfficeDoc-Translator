@@ -8,7 +8,7 @@ Important instructions:
 - IT terms;
 - Numerical digits;
 - Words beginning with 'Forti';
-- Words in single quotes 'output, spoke, AI, Fabric, SD-WAN, SASE, ZTNA'.
+- Words in single quotes 'output, spoke, AI, Fabric, SD-WAN, SASE, ZTNA, mantis'.
 5. Keep the original words unchanged which you can't recognize.
 6. Maintain the original formatting and punctuation as much as possible.
 7. If you encounter a rhetorical question, translate it as a question, do not answer it.
