@@ -98,6 +98,8 @@ Arguments:
 - `429 Too Many Requests` is mitigated by dedup, serial rate limiting, reading `Retry-After`, and exponential backoff.
 - `SSLEOFError / UNEXPECTED_EOF_WHILE_READING` are transient provider/network errors, mitigated by `Session` reuse, timeout, and retry.
 - Only the primary endpoint is used; no automatic provider fallback.
+- Thinking is always disabled: endpoints containing `groq.com` get `reasoning_effort: "none"`, all other endpoints get `thinking: {"type": "disabled"}`.
+- Beyond that field the client does no provider-specific adaptation and no "retry with another field when rejected" downgrade; multi-channel routing and field translation behind a relay gateway are handled on the gateway side.
 - Fail-fast is enabled by default: a single translation unit aborts the task after exhausting retries, saves cache/state, and outputs failure statistics.
 
 ## Verification

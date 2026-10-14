@@ -98,6 +98,8 @@ uv run python OfficeDoc_Translator.py .\input.pptx zh-CN --no-resume --no-fail-f
 - `429 Too Many Requests` 主要靠去重、串行限速、读取 `Retry-After`、以及 exponential backoff 缓解。
 - `SSLEOFError / UNEXPECTED_EOF_WHILE_READING` 属于 transient provider/network error，主要靠 `Session` 复用、timeout 和 retry 缓解。
 - 当前只使用主 endpoint，不做自动 provider fallback。
+- 请求始终关闭 thinking：endpoint 含 `groq.com` 时发送 `reasoning_effort: "none"`，其余端点发送 `thinking: {"type": "disabled"}`。
+- 除上述字段外，客户端不做其他服务商语法适配，也不做「被拒绝就自动换字段」的降级；中转网关背后的多渠道选路与字段翻译差异由网关侧负责。
 - 默认启用 fail-fast：单个翻译单元在耗尽重试后会中止任务、保存 cache/state，并输出失败统计。
 
 ## Verification

@@ -16,6 +16,7 @@ uv.lock
 .idea/
 .claude/
 CLAUDE.md
+.ruff_cache/
 
 
 # Project specific
@@ -25,3 +26,4 @@ cache/
 ppt-translator-v2.7/
 *.env
 .env.*
+
