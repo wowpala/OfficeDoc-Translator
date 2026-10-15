@@ -9,8 +9,8 @@ import re
 import signal
 import sys
 import time
+from collections.abc import Callable
 from dataclasses import dataclass, field
-from typing import Callable
 
 import docx
 import requests
@@ -44,7 +44,7 @@ DEFAULT_CONSECUTIVE_FAILURE_LIMIT = 3
 DEFAULT_SAVE_PROGRESS_EVERY_N = 20
 DEFAULT_RESUME_ENABLED = True
 
-RUNTIME: "TranslationRuntime | None" = None
+RUNTIME: TranslationRuntime | None = None
 
 
 def load_env() -> dict[str, str]:
@@ -104,7 +104,7 @@ def should_skip_translation(text: str) -> bool:
         return True
     if re.fullmatch(r"[\W_]+", normalized):
         return True
-    if re.fullmatch(r"(page|p\.?)?\s*\d+(\s*/\s*\d+)?", normalized, flags=re.I):
+    if re.fullmatch(r"(page|p\.?)?\s*\d+(\s*/\s*\d+)?", normalized, flags=re.IGNORECASE):
         return True
     if not re.search(r"[A-Za-z\u00C0-\u024F\u4e00-\u9fff]", normalized):
         return True
@@ -339,7 +339,7 @@ class TranslationStateManager:
     def __post_init__(self) -> None:
         os.makedirs(CACHE_DIR, exist_ok=True)
         state_seed = (
-            f"{os.path.abspath(self.input_file)}|{self.target_language}".encode("utf-8")
+            f"{os.path.abspath(self.input_file)}|{self.target_language}".encode()
         )
         state_id = hashlib.sha1(state_seed).hexdigest()[:12]
         self.state_file = os.path.join(CACHE_DIR, f"{state_id}.translation-state.json")
